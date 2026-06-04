@@ -1,0 +1,68 @@
+// Flutter plugin library build file.
+// When card_coin adds chipcore_sdk as a pubspec dependency, Flutter uses THIS
+// file to compile the native Android library (not android/app/).
+
+group 'com.chipcore.sdk'
+version '1.0'
+
+buildscript {
+    ext.kotlin_version = '2.1.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.7.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+// Runtime dependency resolution (for compileOnly Flutter embedding)
+repositories {
+    google()
+    mavenCentral()
+    maven { url "https://storage.flutter-io.cn/download.flutter.io" }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace 'com.chipcore.sdk'
+    compileSdkVersion 34
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+
+    sourceSets {
+        main {
+            // 插件入口（src/main/kotlin/）+ 所有现有原生代码（app/src/main/kotlin/）
+            java.srcDirs = [
+                'src/main/kotlin',
+                'app/src/main/kotlin'
+            ]
+            // 排除只能在 app 模块编译的 MainActivity
+            java.excludes = ['**/MainActivity.kt']
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+        }
+    }
+
+    defaultConfig {
+        minSdkVersion 21
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    // nfc_manager 通过 Flutter embedding 提供，此处不单独引入
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'org.bouncycastle:bcprov-jdk15to18:1.78.1'
+    // Flutter embedding — compileOnly so it's not bundled into the library AAR
+    compileOnly 'io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb'
+}

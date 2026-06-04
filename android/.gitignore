@@ -1,0 +1,11 @@
+gradle-wrapper.jar
+/.gradle
+/captures/
+local.properties
+GeneratedPluginRegistrant.java
+
+# 签名密钥，不提交到版本控制
+# See https://flutter.dev/docs/deployment/android#reference-the-keystore-from-the-app
+key.properties
+**/*.keystore
+**/*.jks

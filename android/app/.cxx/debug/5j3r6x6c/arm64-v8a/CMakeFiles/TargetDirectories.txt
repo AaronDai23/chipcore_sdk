@@ -1,0 +1,2 @@
+/Users/daipeiqiong/Documents/work/jianzhi/app/chipcore_sdk/android/app/.cxx/debug/5j3r6x6c/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/daipeiqiong/Documents/work/jianzhi/app/chipcore_sdk/android/app/.cxx/debug/5j3r6x6c/arm64-v8a/CMakeFiles/rebuild_cache.dir
