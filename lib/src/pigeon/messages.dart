@@ -609,6 +609,7 @@ class SendCommandMessage {
     this.command,
     this.checkLock,
     this.ndefLink,
+    this.ndefAar,
     this.cardNo,
     this.checkPwd,
     this.needRun,
@@ -624,6 +625,7 @@ class SendCommandMessage {
   bool? checkLock;
 
   String? ndefLink;
+  String? ndefAar;
 
   String? cardNo;
 
@@ -640,6 +642,7 @@ class SendCommandMessage {
       command,
       checkLock,
       ndefLink,
+      ndefAar,
       cardNo,
       checkPwd,
       needRun,
@@ -655,10 +658,11 @@ class SendCommandMessage {
       command: result[2] as Uint8List?,
       checkLock: result[3] as bool?,
       ndefLink: result[4] as String?,
-      cardNo: result[5] as String?,
-      checkPwd: result[6] as bool?,
-      needRun: result[7] as bool?,
-      needSyscUid: result[8] as bool?,
+      ndefAar: result[5] as String?,
+      cardNo: result[6] as String?,
+      checkPwd: result[7] as bool?,
+      needRun: result[8] as bool?,
+      needSyscUid: result[9] as bool?,
     );
   }
 }

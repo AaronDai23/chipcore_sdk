@@ -171,6 +171,9 @@ class SendCommandMessage {
   bool? checkPwd;
   bool? needRun;
   bool? needSyscUid;
+
+  /// AAR（Android Application Record）包名字符串（逗号分隔），写入前自动去重。
+  String? ndefAar;
 }
 
 class ChainKeyMessage {

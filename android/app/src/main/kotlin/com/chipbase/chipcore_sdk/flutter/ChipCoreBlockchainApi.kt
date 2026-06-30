@@ -117,6 +117,22 @@ class ChipCoreBlockchainApi private constructor(
                     }
                 }
 
+                // ── AAR 写入（INS=0x67，去重：仅当卡片当前值与目标不同时才写）────────
+                val ndefAar = sendCommandMessage.ndefAar?.takeIf { it.isNotEmpty() }
+                if (ndefAar != null) {
+                    try {
+                        val currentAar = client.readAar()
+                        if (currentAar != ndefAar) {
+                            client.writeAar(ndefAar)
+                            Log.d("ChipCoreNfc", "writeAar: updated '$currentAar' → '$ndefAar'")
+                        } else {
+                            Log.d("ChipCoreNfc", "writeAar: skipped (unchanged)")
+                        }
+                    } catch (e: Exception) {
+                        Log.w("ChipCoreNfc", "writeAar failed (non-fatal): ${e.message}")
+                    }
+                }
+
                 // ── UID 同步写入已在 getStatus 前完成（Tangem WriteUidCommand 顺序）──
 
                 state.lastCardId = currentCardId

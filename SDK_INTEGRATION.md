@@ -517,6 +517,37 @@ if (result.isSuccess) {
 final result = await ScanUtil.scanOnly(needSyncUid: true);
 ```
 
+#### AAR 包名读取（INS=0x66）
+
+读取卡片中存储的 Android Application Record 浏览器包名列表（逗号分隔字符串）：
+
+```dart
+final result = await ScanUtil.getAarData();
+if (result.isSuccess) {
+  final packages = result.data!; // 如 "com.android.chrome,com.android.browser"
+  print('AAR packages: $packages');
+}
+```
+
+#### AAR 包名写入（INS=0x67）
+
+写入 AAR 包名列表。包名仅允许 `[a-z0-9._]`，逗号分隔，payload 不超过 222 字节：
+
+```dart
+// 写入 3 个浏览器包名
+final result = await ScanUtil.storeAarData(
+  'com.android.chrome,com.android.browser,com.huawei.browser',
+);
+if (result.isSuccess) {
+  print('AAR data stored successfully');
+}
+
+// 清空列表
+await ScanUtil.storeAarData('');
+```
+
+> **NOTE**：需 **NDEF `a2.2.1.20260620094+`** 与 **HDWallet `a2.2.3.2026062023+`** 配合。恢复出厂（`8044`）会清零 AAR 列表。NDEF 拍卡时最多展开 **5** 条 AAR 记录。
+
 ---
 
 ## 5. 数据模型

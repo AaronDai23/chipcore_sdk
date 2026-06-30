@@ -307,6 +307,10 @@ class ScanUtil {
     bool checkLock = false,
     bool needSyncUid = false,
     String? ndefLink,
+
+    /// AAR 包名列表（逗号分隔），在 ndefLink 写入后同一 NFC session 内写入；
+    /// 已与卡片一致时自动跳过。
+    String? ndefAar,
     String? cardId,
     String? cardNo,
   }) async {
@@ -317,6 +321,7 @@ class ScanUtil {
           checkLock: checkLock,
           needSyscUid: needSyncUid,
           ndefLink: ndefLink,
+          ndefAar: ndefAar,
           cardId: cardId,
           cardNo: cardNo,
         ),
@@ -332,6 +337,10 @@ class ScanUtil {
     bool checkLock = false,
     bool needSyncUid = false,
     String? ndefLink,
+
+    /// AAR 包名列表（逗号分隔），在 ndefLink 写入后同一 NFC session 内写入；
+    /// 已与卡片一致时自动跳过。
+    String? ndefAar,
   }) async {
     try {
       final resp = await _api.scanCardWithCommand(
@@ -339,6 +348,7 @@ class ScanUtil {
           checkLock: checkLock,
           needSyscUid: needSyncUid,
           ndefLink: ndefLink,
+          ndefAar: ndefAar,
         ),
       );
       return ScanResponse(true, data: resp);
@@ -422,6 +432,74 @@ class ScanUtil {
     } catch (e) {
       return _fromException(e);
     }
+  }
+
+  // ── AAR（Android Application Record）包名 ───────────────────
+
+  /// 读取 AAR 包名列表（INS=0x66）。
+  /// 成功时 [data] 为逗号分隔的包名字符串，列表为空时为空字符串。
+  static Future<ScanResponse<String>> getAarData() async {
+    final resp = await sendCommand(
+      Uint8List.fromList([0x80, 0x66, 0x00, 0x00]),
+    );
+    if (!resp.isSuccess) {
+      return ScanResponse(false,
+          message: resp.message,
+          sw1: resp.sw1,
+          sw2: resp.sw2,
+          errorCode: resp.errorCode);
+    }
+    final data = resp.data?.data;
+    if (data == null || data.length < 2)
+      return const ScanResponse(true, data: '');
+    final tag = data[0];
+    final len = data[1];
+    if (tag != 0xAC || data.length < 2 + len)
+      return const ScanResponse(true, data: '');
+    return ScanResponse(true,
+        data: String.fromCharCodes(data.sublist(2, 2 + len)));
+  }
+
+  /// 写入 AAR 包名列表（INS=0x67）。
+  /// [packages] 逗号分隔的包名，如 `"com.android.chrome,com.android.browser"`。
+  /// 清空列表：传入空字符串（等价于发送 `AC 00`）。
+  /// 包名仅允许 `[a-z0-9._]`，payload 不超过 222 字节。
+  static Future<ScanResponse<CommandResponse>> storeAarData(
+      String packages) async {
+    // 校验包名字符集
+    if (packages.isNotEmpty) {
+      final namePattern = RegExp(r'^[a-z0-9._]+$');
+      for (final name in packages.split(',')) {
+        final trimmed = name.trim();
+        if (!namePattern.hasMatch(trimmed)) {
+          return ScanResponse(false,
+              message:
+                  'Invalid package name: "$trimmed". Only [a-z0-9._] are allowed.');
+        }
+      }
+    }
+    // 构造 TLV payload: [0xAC, len, ...utf8_bytes]
+    final packagesBytes = Uint8List.fromList(packages.codeUnits);
+    if (packagesBytes.length > 222) {
+      return ScanResponse(false,
+          message:
+              'Package list too long (${packagesBytes.length} bytes, max 222).');
+    }
+    final payload = Uint8List(2 + packagesBytes.length);
+    payload[0] = 0xAC;
+    payload[1] = packagesBytes.length;
+    if (packagesBytes.isNotEmpty) {
+      payload.setRange(2, 2 + packagesBytes.length, packagesBytes);
+    }
+    // 完整 APDU: CLA=0x80, INS=0x67, P1=0x00, P2=0x00, Lc, Data
+    final apdu = Uint8List(5 + payload.length);
+    apdu[0] = 0x80;
+    apdu[1] = 0x67;
+    apdu[2] = 0x00;
+    apdu[3] = 0x00;
+    apdu[4] = payload.length;
+    apdu.setRange(5, 5 + payload.length, payload);
+    return sendCommand(apdu);
   }
 
   // ── UI 提示 ───────────────────────────────────────────────

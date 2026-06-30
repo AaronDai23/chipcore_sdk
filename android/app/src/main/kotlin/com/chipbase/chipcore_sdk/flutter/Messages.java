@@ -2387,17 +2387,27 @@ public class Messages {
       this.needSyscUid = setterArg;
     }
 
+    private @Nullable String ndefAar;
+
+    public @Nullable String getNdefAar() {
+      return ndefAar;
+    }
+
+    public void setNdefAar(@Nullable String setterArg) {
+      this.ndefAar = setterArg;
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) { return true; }
       if (o == null || getClass() != o.getClass()) { return false; }
       SendCommandMessage that = (SendCommandMessage) o;
-      return Arrays.equals(appletId, that.appletId) && Objects.equals(cardId, that.cardId) && Arrays.equals(command, that.command) && Objects.equals(checkLock, that.checkLock) && Objects.equals(ndefLink, that.ndefLink) && Objects.equals(cardNo, that.cardNo) && Objects.equals(checkPwd, that.checkPwd) && Objects.equals(needRun, that.needRun) && Objects.equals(needSyscUid, that.needSyscUid);
+      return Arrays.equals(appletId, that.appletId) && Objects.equals(cardId, that.cardId) && Arrays.equals(command, that.command) && Objects.equals(checkLock, that.checkLock) && Objects.equals(ndefLink, that.ndefLink) && Objects.equals(cardNo, that.cardNo) && Objects.equals(checkPwd, that.checkPwd) && Objects.equals(needRun, that.needRun) && Objects.equals(needSyscUid, that.needSyscUid) && Objects.equals(ndefAar, that.ndefAar);
     }
 
     @Override
     public int hashCode() {
-      int pigeonVar_result = Objects.hash(cardId, checkLock, ndefLink, cardNo, checkPwd, needRun, needSyscUid);
+      int pigeonVar_result = Objects.hash(cardId, checkLock, ndefLink, cardNo, checkPwd, needRun, needSyscUid, ndefAar);
       pigeonVar_result = 31 * pigeonVar_result + Arrays.hashCode(appletId);
       pigeonVar_result = 31 * pigeonVar_result + Arrays.hashCode(command);
       return pigeonVar_result;
@@ -2477,6 +2487,14 @@ public class Messages {
         return this;
       }
 
+      private @Nullable String ndefAar;
+
+      @CanIgnoreReturnValue
+      public @NonNull Builder setNdefAar(@Nullable String setterArg) {
+        this.ndefAar = setterArg;
+        return this;
+      }
+
       public @NonNull SendCommandMessage build() {
         SendCommandMessage pigeonReturn = new SendCommandMessage();
         pigeonReturn.setAppletId(appletId);
@@ -2488,13 +2506,14 @@ public class Messages {
         pigeonReturn.setCheckPwd(checkPwd);
         pigeonReturn.setNeedRun(needRun);
         pigeonReturn.setNeedSyscUid(needSyscUid);
+        pigeonReturn.setNdefAar(ndefAar);
         return pigeonReturn;
       }
     }
 
     @NonNull
     ArrayList<Object> toList() {
-      ArrayList<Object> toListResult = new ArrayList<>(9);
+      ArrayList<Object> toListResult = new ArrayList<>(10);
       toListResult.add(appletId);
       toListResult.add(cardId);
       toListResult.add(command);
@@ -2504,6 +2523,7 @@ public class Messages {
       toListResult.add(checkPwd);
       toListResult.add(needRun);
       toListResult.add(needSyscUid);
+      toListResult.add(ndefAar);
       return toListResult;
     }
 
@@ -2527,6 +2547,10 @@ public class Messages {
       pigeonResult.setNeedRun((Boolean) needRun);
       Object needSyscUid = pigeonVar_list.get(8);
       pigeonResult.setNeedSyscUid((Boolean) needSyscUid);
+      if (pigeonVar_list.size() > 9) {
+        Object ndefAar = pigeonVar_list.get(9);
+        pigeonResult.setNdefAar((String) ndefAar);
+      }
       return pigeonResult;
     }
   }

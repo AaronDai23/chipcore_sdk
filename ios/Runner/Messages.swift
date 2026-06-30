@@ -575,6 +575,8 @@ struct SendCommandMessage {
   var checkPwd: Bool? = nil
   var needRun: Bool? = nil
   var needSyscUid: Bool? = nil
+  /// AAR（Android Application Record）包名字符串（逗号分隔），写入前自动去重。
+  var ndefAar: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -588,6 +590,7 @@ struct SendCommandMessage {
     let checkPwd: Bool? = nilOrValue(pigeonVar_list[6])
     let needRun: Bool? = nilOrValue(pigeonVar_list[7])
     let needSyscUid: Bool? = nilOrValue(pigeonVar_list[8])
+    let ndefAar: String? = pigeonVar_list.count > 9 ? nilOrValue(pigeonVar_list[9]) : nil
 
     return SendCommandMessage(
       appletId: appletId,
@@ -598,7 +601,8 @@ struct SendCommandMessage {
       cardNo: cardNo,
       checkPwd: checkPwd,
       needRun: needRun,
-      needSyscUid: needSyscUid
+      needSyscUid: needSyscUid,
+      ndefAar: ndefAar
     )
   }
   func toList() -> [Any?] {
@@ -612,6 +616,7 @@ struct SendCommandMessage {
       checkPwd,
       needRun,
       needSyscUid,
+      ndefAar,
     ]
   }
 }

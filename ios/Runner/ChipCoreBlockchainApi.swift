@@ -64,52 +64,73 @@ final class ChipCoreBlockchainApi: NSObject, BlockchainApi {
 
           // 2. NDEF 写入（可选）
           func afterNdef(_ ndefResult: String?) {
-            // 3. UID 同步写入（可选）
-            func afterUid() {
-              // 4. 执行主命令（可选）
-              if let command {
-                client.sendCommand(command) { cmdResult in
-                  switch cmdResult {
-                  case .failure(let error):
-                    finish(.failure(error))
-                  case .success(let responseBytes):
-                    finish(.success(CommandResponse(
-                      cardId: channel.cardId,
-                      appletVersionCode: status.versionCode ?? "",
-                      appletVersion: status.version ?? "",
-                      isActivated: status.hasKeyPair,
-                      resetCount: status.resetCount,
-                      data: FlutterStandardTypedData(bytes: responseBytes)
-                    )))
+            // 2.5. AAR 写入（INS=0x67，去重：仅当卡片当前值与目标不同时才写）
+            func afterAar() {
+              // 3. UID 同步写入（可选）
+              func afterUid() {
+                // 4. 执行主命令（可选）
+                if let command {
+                  client.sendCommand(command) { cmdResult in
+                    switch cmdResult {
+                    case .failure(let error):
+                      finish(.failure(error))
+                    case .success(let responseBytes):
+                      finish(.success(CommandResponse(
+                        cardId: channel.cardId,
+                        appletVersionCode: status.versionCode ?? "",
+                        appletVersion: status.version ?? "",
+                        isActivated: status.hasKeyPair,
+                        resetCount: status.resetCount,
+                        data: FlutterStandardTypedData(bytes: responseBytes)
+                      )))
+                    }
                   }
+                } else if let ndefResult {
+                  // command 为 nil 但有 NDEF 写入，将回读 URL 以 UTF-8 编码作为 data 返回
+                  let resultBytes = ndefResult.data(using: .utf8) ?? Data()
+                  finish(.success(CommandResponse(
+                    cardId: channel.cardId,
+                    appletVersionCode: status.versionCode ?? "",
+                    appletVersion: status.version ?? "",
+                    isActivated: status.hasKeyPair,
+                    resetCount: status.resetCount,
+                    data: FlutterStandardTypedData(bytes: resultBytes)
+                  )))
+                } else {
+                  finish(.success(CommandResponse(
+                    cardId: channel.cardId,
+                    appletVersionCode: status.versionCode ?? "",
+                    appletVersion: status.version ?? "",
+                    isActivated: status.hasKeyPair,
+                    resetCount: status.resetCount,
+                    data: nil
+                  )))
                 }
-              } else if let ndefResult {
-                // command 为 nil 但有 NDEF 写入，将回读 URL 以 UTF-8 编码作为 data 返回
-                let resultBytes = ndefResult.data(using: .utf8) ?? Data()
-                finish(.success(CommandResponse(
-                  cardId: channel.cardId,
-                  appletVersionCode: status.versionCode ?? "",
-                  appletVersion: status.version ?? "",
-                  isActivated: status.hasKeyPair,
-                  resetCount: status.resetCount,
-                  data: FlutterStandardTypedData(bytes: resultBytes)
-                )))
+              }
+
+              if needSyncUid {
+                client.writeUid { _ in afterUid() }
               } else {
-                finish(.success(CommandResponse(
-                  cardId: channel.cardId,
-                  appletVersionCode: status.versionCode ?? "",
-                  appletVersion: status.version ?? "",
-                  isActivated: status.hasKeyPair,
-                  resetCount: status.resetCount,
-                  data: nil
-                )))
+                afterUid()
               }
             }
 
-            if needSyncUid {
-              client.writeUid { _ in afterUid() }
+            let targetAar = sendCommandMessage.ndefAar.flatMap { $0.isEmpty ? nil : $0 }
+            if let targetAar {
+              client.readAar { readResult in
+                let currentAar = (try? readResult.get()) ?? ""
+                if currentAar != targetAar {
+                  client.writeAar(packages: targetAar) { _ in
+                    NSLog("ChipCoreNfc: writeAar: updated")
+                    afterAar()
+                  }
+                } else {
+                  NSLog("ChipCoreNfc: writeAar: skipped (unchanged)")
+                  afterAar()
+                }
+              }
             } else {
-              afterUid()
+              afterAar()
             }
           }
 
@@ -1417,6 +1438,44 @@ private final class HdWalletCardClient {
     }
   }
 
+  // MARK: - writeAar / readAar（AAR 包名读写）
+
+  /**
+   写入 AAR 包名列表（INS=0x67）。
+   - packages: 逗号分隔的包名，如 "com.android.chrome,com.android.browser"。
+     清空列表：传入空字符串（发送 AC 00）。
+   */
+  func writeAar(packages: String, completion: @escaping (Result<Void, Error>) -> Void) {
+    guard let packagesBytes = packages.data(using: .utf8) else {
+      completion(.failure(PigeonError(code: "invalid-argument", message: "Failed to encode AAR packages", details: nil)))
+      return
+    }
+    let payload = HdWalletApdu.tlv(tag: HdWalletApdu.tagAarData, value: packagesBytes)
+    channel.send(apduData: HdWalletApdu.withData(ins: HdWalletApdu.insStoreAar, data: payload), context: "Write AAR failed") { outcome in
+      completion(outcome.map { _ in () })
+    }
+  }
+
+  /// 读取 AAR 包名列表（INS=0x66）。返回逗号分隔的包名字符串，列表为空时返回 ""。
+  func readAar(completion: @escaping (Result<String, Error>) -> Void) {
+    channel.send(apduData: HdWalletApdu.simple(ins: HdWalletApdu.insGetAar), context: "Read AAR failed") { outcome in
+      switch outcome {
+      case .success(let raw):
+        guard raw.count >= 2 else { completion(.success(""));  return }
+        let tag = raw[0]
+        let len = Int(raw[1])
+        if tag != HdWalletApdu.tagAarData || raw.count < 2 + len {
+          completion(.success(""))
+          return
+        }
+        let str = String(data: raw.subdata(in: 2..<(2 + len)), encoding: .utf8) ?? ""
+        completion(.success(str))
+      case .failure(let error):
+        completion(.failure(error))
+      }
+    }
+  }
+
   // MARK: - writeUid（裸 APDU，不加密）
 
   func writeUid(completion: @escaping (Result<Void, Error>) -> Void) {
@@ -1473,6 +1532,10 @@ private enum HdWalletApdu {
   static let insStoreNdef: UInt8 = 0x63
   // UID 同步写入
   static let insStoreUid: UInt8 = 0x65
+  // AAR（Android Application Record）包名读/写
+  static let insGetAar: UInt8 = 0x66
+  static let insStoreAar: UInt8 = 0x67
+  static let tagAarData: UInt8 = 0xAC
 
   static let tagPublicKey: UInt8 = 0x90
   static let tagPrivateKey: UInt8 = 0x91

@@ -461,6 +461,10 @@ internal object HdWalletApdu {
     // UID 同步写入（与 card_coin StoreUidDataRunnable 对应）
     const val INS_STORE_UID: Byte = 0x65
     const val TAG_UID_STORE: Int = 0xA5
+    // AAR（Android Application Record）包名读/写
+    const val INS_GET_AAR: Byte = 0x66
+    const val INS_STORE_AAR: Byte = 0x67
+    const val TAG_AAR_DATA: Int = 0xAC
 
     const val TAG_PUBLIC_KEY: Int = 0x90
     const val TAG_PRIVATE_KEY: Int = 0x91
@@ -640,6 +644,31 @@ internal class HdWalletCardClient(
         val len = raw[1].toInt() and 0xFF
         if (tag != HdWalletApdu.TAG_NDEF_URL || raw.size < 2 + len) return ""
         return String(raw, 2, len, StandardCharsets.UTF_8)
+    }
+
+    // ── AAR（Android Application Record）包名读/写 ──────────────────────────
+
+    /** 读取 AAR 包名列表（INS=0x66）。返回逗号分隔的包名字符串，列表为空时返回空字符串。 */
+    fun readAar(): String {
+        val raw = send(HdWalletApdu.simple(HdWalletApdu.INS_GET_AAR), "读取 AAR 失败")
+        Log.d("ChipCoreNfc", "readAar raw [${raw.size}] ${raw.toHex()}")
+        if (raw.size < 2) return ""
+        val tag = raw[0].toInt() and 0xFF
+        val len = raw[1].toInt() and 0xFF
+        if (tag != HdWalletApdu.TAG_AAR_DATA || raw.size < 2 + len) return ""
+        return String(raw, 2, len, StandardCharsets.UTF_8)
+    }
+
+    /**
+     * 写入 AAR 包名列表（INS=0x67）。
+     * [packages] 逗号分隔，如 "com.android.chrome,com.android.browser"。
+     * 清空列表：传入空字符串（发送 AC 00）。
+     */
+    fun writeAar(packages: String) {
+        val packagesBytes = packages.toByteArray(StandardCharsets.UTF_8)
+        val payload = HdWalletApdu.tlv(HdWalletApdu.TAG_AAR_DATA, packagesBytes)
+        send(HdWalletApdu.withData(HdWalletApdu.INS_STORE_AAR, payload), "写入 AAR 失败")
+        Log.d("ChipCoreNfc", "writeAar: stored packages=$packages")
     }
 
     fun writeUid() {
